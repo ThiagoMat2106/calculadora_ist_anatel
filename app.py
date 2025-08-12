@@ -75,9 +75,9 @@ def extrair_dados_ipca():
         response.raise_for_status()
         data = response.json()
         
-        df_ipca = pd.DataFrame(data[0]['resultados'][0]['series'][0]['serie']).T
-        df_ipca = df_ipca.reset_index()
-        df_ipca.columns = ['PERÍODO', 'ÍNDICE']
+        # CORREÇÃO: Cria o DataFrame a partir do dicionário, definindo 'index' como o nome do período
+        df_ipca = pd.DataFrame.from_dict(data[0]['resultados'][0]['series'][0]['serie'], orient='index', columns=['ÍNDICE'])
+        df_ipca = df_ipca.reset_index().rename(columns={'index': 'PERÍODO'})
         
         # O IBGE retorna a data no formato 'YYYYMM', precisamos formatar para 'mmm/yy'
         df_ipca['PERÍODO'] = pd.to_datetime(df_ipca['PERÍODO'], format='%Y%m').dt.strftime('%b/%y').str.lower()
@@ -195,33 +195,3 @@ elif pagina == "Calculadora de Reajuste IPCA":
                 st.error(f"Ocorreu um erro: {e}")
     else:
         st.error("Não foi possível carregar os dados do IBGE. Verifique a conexão com a internet ou se a API está disponível.")
-
-elif pagina == "Como Calcular o IST":
-    st.title("Como o reajuste do IST é calculado?")
-    st.write("O Índice de Serviços de Telecomunicações (IST) é utilizado para reajustar valores contratuais com base na variação dos preços de serviços de telecomunicações no Brasil. O cálculo é feito de forma simples, utilizando a proporção entre os índices do período inicial e final.")
-    
-    st.markdown("---")
-    
-    st.subheader("Fórmula de Cálculo")
-    st.write("A fórmula para encontrar o novo valor reajustado é:")
-    st.code("Valor Reajustado = Valor Original * (Índice do Mês Final / Índice do Mês Inicial)", language="python")
-    
-    st.write("A fórmula para encontrar o percentual de reajuste é:")
-    st.code("Reajuste Percentual = ((Índice do Mês Final / Índice do Mês Inicial) - 1) * 100", language="python")
-    
-    st.markdown("---")
-    
-    st.subheader("Exemplo Prático")
-    st.write("Imagine que um contrato com valor de R$ 1.000,00 precisa ser reajustado de **Janeiro/2023** para **Janeiro/2024**.")
-    
-    st.write("1. **Valores do IST nos períodos:**")
-    st.write("- **Janeiro/2023:** 114.77")
-    st.write("- **Janeiro/2024:** 118.52")
-
-    st.write("2. **Cálculo do Valor Reajustado:**")
-    st.code("Valor Reajustado = 1.000 * (118.52 / 114.77) ≈ R$ 1.032,68", language="python")
-    
-    st.write("3. **Cálculo do Reajuste Percentual:**")
-    st.code("Reajuste Percentual = ((118.52 / 114.77) - 1) * 100 ≈ 3,21%", language="python")
-
-    st.write("A sua calculadora já faz todo esse trabalho automaticamente para você!")
