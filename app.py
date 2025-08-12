@@ -61,6 +61,9 @@ if pagina == "Calculadora de Reajuste IST":
 
         periodos_disponiveis = df_ist['PERÍODO'].tolist()
         
+        # Invertendo a ordem para que o mês mais antigo apareça primeiro
+        periodos_disponiveis = periodos_disponiveis[::-1]
+
         with st.form(key='calculadora_form'):
             col1, col2, col3 = st.columns(3)
             with col1:
