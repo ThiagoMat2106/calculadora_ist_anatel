@@ -1,6 +1,8 @@
 import pandas as pd
 from playwright.sync_api import sync_playwright
 import streamlit as st
+import subprocess
+import sys
 
 # --- CONFIGURAÇÃO DE INSTALAÇÃO DO PLAYWRIGHT ---
 
@@ -100,11 +102,15 @@ if not df_ist.empty:
                 valor_reajustado = valor_original * (ist_final / ist_inicial)
                 reajuste_percentual = ((ist_final / ist_inicial) - 1) * 100
 
+                # Formatação para o padrão brasileiro
+                valor_original_formatado = f"R$ {valor_original:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                valor_reajustado_formatado = f"R$ {valor_reajustado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
                 st.subheader("Resultado do Cálculo")
-                st.write(f"**Valor Original:** R$ {valor_original:,.2f}")
+                st.write(f"**Valor Original:** {valor_original_formatado}")
                 st.write(f"**Índice na data inicial ({data_inicial_str}):** {ist_inicial}")
                 st.write(f"**Índice na data final ({data_final_str}):** {ist_final}")
-                st.metric("Valor Reajustado", value=f"R$ {valor_reajustado:,.2f}", delta=f"{reajuste_percentual:.2f}%")
+                st.metric("Valor Reajustado", value=valor_reajustado_formatado, delta=f"{reajuste_percentual:.2f}%")
 
         except Exception as e:
             st.error(f"Ocorreu um erro: {e}")
