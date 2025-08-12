@@ -1,8 +1,6 @@
 import pandas as pd
 from playwright.sync_api import sync_playwright
 import streamlit as st
-import subprocess
-import sys
 
 # --- CONFIGURAÇÃO DE INSTALAÇÃO DO PLAYWRIGHT ---
 
@@ -72,10 +70,6 @@ st.write("Insira os dados abaixo para calcular o reajuste do valor com base no �
 df_ist = extrair_dados_ist_completo()
 
 if not df_ist.empty:
-    st.subheader("Últimos 5 valores carregados:")
-    st.dataframe(df_ist.tail(5), use_container_width=True)
-    
-    # Adiciona um expander para mostrar a tabela completa
     with st.expander("Clique para ver todos os dados históricos"):
         st.dataframe(df_ist, use_container_width=True)
 
@@ -84,7 +78,7 @@ if not df_ist.empty:
     with st.form(key='calculadora_form'):
         col1, col2, col3 = st.columns(3)
         with col1:
-            valor_original = st.number_input("Valor Original do Contrato (R$)", min_value=0.01, format="%.2f", value=150.00)
+            valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00)
         with col2:
             data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0)
         with col3:
@@ -107,10 +101,10 @@ if not df_ist.empty:
                 reajuste_percentual = ((ist_final / ist_inicial) - 1) * 100
 
                 st.subheader("Resultado do Cálculo")
-                st.write(f"**Valor Original:** R$ {valor_original:.2f}")
+                st.write(f"**Valor Original:** R$ {valor_original:,.2f}")
                 st.write(f"**Índice na data inicial ({data_inicial_str}):** {ist_inicial}")
                 st.write(f"**Índice na data final ({data_final_str}):** {ist_final}")
-                st.metric("Valor Reajustado", value=f"R$ {valor_reajustado:.2f}", delta=f"{reajuste_percentual:.2f}%")
+                st.metric("Valor Reajustado", value=f"R$ {valor_reajustado:,.2f}", delta=f"{reajuste_percentual:.2f}%")
 
         except Exception as e:
             st.error(f"Ocorreu um erro: {e}")
