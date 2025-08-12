@@ -73,4 +73,25 @@ if not df_ist.empty:
 
     if submit_button:
         try:
-            ist_inicial_row =
+            ist_inicial_row = df_ist[df_ist['PERÍODO'] == data_inicial_str]
+            ist_final_row = df_ist[df_ist['PERÍODO'] == data_final_str]
+
+            if ist_inicial_row.empty or ist_final_row.empty:
+                st.warning(f"Uma ou ambas as datas não foram encontradas na base de dados do IST.")
+            else:
+                ist_inicial = ist_inicial_row['ÍNDICE'].iloc[0]
+                ist_final = ist_final_row['ÍNDICE'].iloc[0]
+
+                valor_reajustado = valor_original * (ist_final / ist_inicial)
+                reajuste_percentual = ((ist_final / ist_inicial) - 1) * 100
+
+                st.subheader("Resultado do Cálculo")
+                st.write(f"**Valor Original:** R$ {valor_original:.2f}")
+                st.write(f"**Índice na data inicial ({data_inicial_str}):** {ist_inicial}")
+                st.write(f"**Índice na data final ({data_final_str}):** {ist_final}")
+                st.metric("Valor Reajustado", value=f"R$ {valor_reajustado:.2f}", delta=f"{reajuste_percentual:.2f}%")
+
+        except Exception as e:
+            st.error(f"Ocorreu um erro: {e}")
+else:
+    st.error("Não foi possível carregar os dados. Verifique a conexão com a internet.")
