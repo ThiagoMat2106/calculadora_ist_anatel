@@ -2,19 +2,6 @@ import pandas as pd
 import requests
 from playwright.sync_api import sync_playwright
 import streamlit as st
-import subprocess
-import sys
-
-# --- CONFIGURAÇÃO DE INSTALAÇÃO DO PLAYWRIGHT ---
-
-def instalar_navegadores_playwright():
-    try:
-        p = sync_playwright().start()
-        p.chromium.launch().close()
-    except:
-        subprocess.run([sys.executable, "-m", "playwright", "install"], check=True, capture_output=True)
-    finally:
-        p.stop()
 
 # --- EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
@@ -75,11 +62,9 @@ def extrair_dados_ipca():
         response.raise_for_status()
         data = response.json()
         
-        # CORREÇÃO: Cria o DataFrame a partir do dicionário, definindo 'index' como o nome do período
         df_ipca = pd.DataFrame.from_dict(data[0]['resultados'][0]['series'][0]['serie'], orient='index', columns=['ÍNDICE'])
         df_ipca = df_ipca.reset_index().rename(columns={'index': 'PERÍODO'})
         
-        # O IBGE retorna a data no formato 'YYYYMM', precisamos formatar para 'mmm/yy'
         df_ipca['PERÍODO'] = pd.to_datetime(df_ipca['PERÍODO'], format='%Y%m').dt.strftime('%b/%y').str.lower()
         df_ipca['ÍNDICE'] = df_ipca['ÍNDICE'].astype(float)
         
@@ -95,13 +80,13 @@ def extrair_dados_ipca():
 st.set_page_config(layout="wide", page_title="Calculadora de Reajuste")
 
 # Menu de navegação na barra lateral
-pagina = st.sidebar.radio("Selecione o Índice", ["Calculadora de Reajuste IST", "Calculadora de Reajuste IPCA"])
+pagina = st.sidebar.radio("Selecione o Índice", ["Calculadora de Reajuste IST", "Calculadora de Reajuste IPCA", "Como Calcular o IST"])
 
 if pagina == "Calculadora de Reajuste IST":
     st.title("Calculadora de Reajuste IST")
     st.write("Calcula o reajuste do valor com base no Índice de Serviços de Telecomunicações.")
     
-    instalar_navegadores_playwright()
+    # O script on_startup.sh já garante a instalação do navegador
     df_ist = extrair_dados_ist_completo()
 
     if not df_ist.empty:
@@ -145,7 +130,7 @@ if pagina == "Calculadora de Reajuste IST":
             except Exception as e:
                 st.error(f"Ocorreu um erro: {e}")
     else:
-        st.error("Não foi possível carregar os dados. Verifique a conexão com a internet.")
+        st.error("Não foi possível carregar os dados. Verifique as configurações do Playwright e a conexão com a internet.")
 
 elif pagina == "Calculadora de Reajuste IPCA":
     st.title("Calculadora de Reajuste IPCA")
@@ -195,3 +180,33 @@ elif pagina == "Calculadora de Reajuste IPCA":
                 st.error(f"Ocorreu um erro: {e}")
     else:
         st.error("Não foi possível carregar os dados do IBGE. Verifique a conexão com a internet ou se a API está disponível.")
+
+elif pagina == "Como Calcular o IST":
+    st.title("Como o reajuste do IST é calculado?")
+    st.write("O Índice de Serviços de Telecomunicações (IST) é utilizado para reajustar valores contratuais com base na variação dos preços de serviços de telecomunicações no Brasil. O cálculo é feito de forma simples, utilizando a proporção entre os índices do período inicial e final.")
+    
+    st.markdown("---")
+    
+    st.subheader("Fórmula de Cálculo")
+    st.write("A fórmula para encontrar o novo valor reajustado é:")
+    st.code("Valor Reajustado = Valor Original * (Índice do Mês Final / Índice do Mês Inicial)", language="python")
+    
+    st.write("A fórmula para encontrar o percentual de reajuste é:")
+    st.code("Reajuste Percentual = ((Índice do Mês Final / Índice do Mês Inicial) - 1) * 100", language="python")
+    
+    st.markdown("---")
+    
+    st.subheader("Exemplo Prático")
+    st.write("Imagine que um contrato com valor de R$ 1.000,00 precisa ser reajustado de **Janeiro/2023** para **Janeiro/2024**.")
+    
+    st.write("1. **Valores do IST nos períodos:**")
+    st.write("- **Janeiro/2023:** 114.77")
+    st.write("- **Janeiro/2024:** 118.52")
+
+    st.write("2. **Cálculo do Valor Reajustado:**")
+    st.code("Valor Reajustado = 1.000 * (118.52 / 114.77) ≈ R$ 1.032,68", language="python")
+    
+    st.write("3. **Cálculo do Reajuste Percentual:**")
+    st.code("Reajuste Percentual = ((118.52 / 114.77) - 1) * 100 ≈ 3,21%", language="python")
+
+    st.write("A sua calculadora já faz todo esse trabalho automaticamente para você!")
