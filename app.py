@@ -1,6 +1,26 @@
 import pandas as pd
 from playwright.sync_api import sync_playwright
 import streamlit as st
+import subprocess
+import sys
+
+# --- CONFIGURAÇÃO DE INSTALAÇÃO DO PLAYWRIGHT ---
+
+def install_playwright_browsers():
+    try:
+        # Apenas executa se não houver um navegador instalado
+        p = sync_playwright().start()
+        p.chromium.launch().close()
+    except:
+        st.info("Instalando navegadores do Playwright. Por favor, aguarde...")
+        subprocess.run([sys.executable, "-m", "playwright", "install"], check=True, capture_output=True)
+        p = sync_playwright().start()
+        p.chromium.launch().close()
+    finally:
+        p.stop()
+        st.success("Navegadores do Playwright instalados com sucesso.")
+
+install_playwright_browsers()
 
 # --- PARTE 1: EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
@@ -15,17 +35,14 @@ def extrair_dados_ist_completo():
 
     try:
         with sync_playwright() as p:
-            # Lançamento do navegador em modo headless, sem abrir a janela
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.goto(url)
 
-            # Clica em todos os botões de expandir para que todas as tabelas sejam visíveis
             expand_buttons = page.locator('button.panel-heading').all()
             for button in expand_buttons:
                 button.click()
             
-            # Espera até que todas as tabelas estejam visíveis na página
             page.wait_for_selector('table', state='visible')
 
             page_source = page.content()
@@ -55,17 +72,21 @@ st.write("Insira os dados abaixo para calcular o reajuste do valor com base no �
 df_ist = extrair_dados_ist_completo()
 
 if not df_ist.empty:
-    st.subheader("Últimos valores carregados:")
-    st.dataframe(df_ist.tail(), use_container_width=True)
+    st.subheader("Últimos 5 valores carregados:")
+    st.dataframe(df_ist.tail(5), use_container_width=True)
+    
+    # Adiciona um expander para mostrar a tabela completa
+    with st.expander("Clique para ver todos os dados históricos"):
+        st.dataframe(df_ist, use_container_width=True)
 
     periodos_disponiveis = df_ist['PERÍODO'].tolist()
     
     with st.form(key='calculadora_form'):
         col1, col2, col3 = st.columns(3)
         with col1:
-            valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00)
+            valor_original = st.number_input("Valor Original do Contrato (R$)", min_value=0.01, format="%.2f", value=150.00)
         with col2:
-            data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=periodos_disponiveis.index('Jan/06'))
+            data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0)
         with col3:
             data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1)
         
