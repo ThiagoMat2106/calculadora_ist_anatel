@@ -66,8 +66,10 @@ if pagina == "Calculadora de Reajuste IST":
             with col1:
                 valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00)
             with col2:
+                # O index 0 é o período mais antigo
                 data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0)
             with col3:
+                # O index -1 ou o tamanho da lista - 1 é o período mais recente
                 data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1)
             
             submit_button = st.form_submit_button("Calcular Reajuste")
