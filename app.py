@@ -1,9 +1,5 @@
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from time import sleep
+from playwright.sync_api import sync_playwright
 import streamlit as st
 
 # --- PARTE 1: EXTRAÇÃO E TRATAMENTO DOS DADOS ---
@@ -11,43 +7,38 @@ import streamlit as st
 @st.cache_data
 def extrair_dados_ist_completo():
     """
-    Extrai todos os dados do IST do site da Anatel, com cache para performance.
+    Extrai todos os dados do IST do site da Anatel usando Playwright.
     """
     url = "https://www.gov.br/anatel/pt-br/regulado/competicao/tarifas-e-precos/valores-do-ist"
     
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--log-level=3')
-    
-    # Esta linha usa o Chromium que é instalado pelo packages.txt
-    options.binary_location = "/usr/bin/chromium"
-    
-    # Esta linha usa o chromedriver que vem com o Chromium
-    service = Service(executable_path='/usr/bin/chromedriver')
+    st.info("Buscando dados do IST na Anatel com Playwright...")
 
     try:
-        driver = webdriver.Chrome(service=service, options=options)
-        st.info("Buscando dados do IST na Anatel...")
-        driver.get(url)
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
 
-        expand_buttons = driver.find_elements(By.CSS_SELECTOR, 'button.panel-heading')
-        for button in expand_buttons:
-            driver.execute_script("arguments[0].click();", button)
-            sleep(0.5)
+            # Clica em todos os botões de expandir para que todas as tabelas sejam visíveis
+            expand_buttons = page.locator('button.panel-heading').all()
+            for button in expand_buttons:
+                button.click()
+            
+            # Espera até que todas as tabelas estejam visíveis na página
+            page.wait_for_selector('table', state='visible')
 
-        page_source = driver.page_source
-        driver.quit()
-        
-        lista_de_tabelas = pd.read_html(page_source, decimal=',', thousands='.', header=0)
-        df_ist_completo = pd.concat(lista_de_tabelas, ignore_index=True)
-        
-        df_ist_completo.columns = ['PERÍODO', 'VARIAÇÃO', 'ÍNDICE']
-        df_ist_completo = df_ist_completo.dropna(subset=['PERÍODO']).reset_index(drop=True)
-        df_ist_completo['ÍNDICE'] = df_ist_completo['ÍNDICE'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).astype(float)
-        
-        st.success("Dados do IST extraídos e compilados com sucesso.")
-        return df_ist_completo
+            page_source = page.content()
+            browser.close()
+            
+            lista_de_tabelas = pd.read_html(page_source, decimal=',', thousands='.', header=0)
+            df_ist_completo = pd.concat(lista_de_tabelas, ignore_index=True)
+            
+            df_ist_completo.columns = ['PERÍODO', 'VARIAÇÃO', 'ÍNDICE']
+            df_ist_completo = df_ist_completo.dropna(subset=['PERÍODO']).reset_index(drop=True)
+            df_ist_completo['ÍNDICE'] = df_ist_completo['ÍNDICE'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).astype(float)
+            
+            st.success("Dados do IST extraídos e compilados com sucesso.")
+            return df_ist_completo
 
     except Exception as e:
         st.error(f"Ocorreu um erro ao extrair os dados: {e}")
@@ -102,4 +93,4 @@ if not df_ist.empty:
         except Exception as e:
             st.error(f"Ocorreu um erro: {e}")
 else:
-    st.error("Não foi possível carregar os dados. Verifique as configurações do Selenium e a conexão com a internet.")
+    st.error("Não foi possível carregar os dados. Verifique a conexão com a internet.")
