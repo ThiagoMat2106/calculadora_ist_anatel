@@ -20,11 +20,10 @@ def extrair_dados_ist_completo():
     options.add_argument('--disable-gpu')
     options.add_argument('--log-level=3')
     
-    # Esta linha foi alterada para funcionar no Streamlit Cloud
-    # Ele usa o binário do Chrome que já está no sistema
-    options.binary_location = "/usr/bin/google-chrome"
+    # Esta linha usa o Chromium que é instalado pelo packages.txt
+    options.binary_location = "/usr/bin/chromium"
     
-    # Esta linha foi alterada para usar o chromedriver instalado pelo 'packages.txt'
+    # Esta linha usa o chromedriver que vem com o Chromium
     service = Service(executable_path='/usr/bin/chromedriver')
 
     try:
