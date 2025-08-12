@@ -4,17 +4,6 @@ import streamlit as st
 import subprocess
 import sys
 
-# --- CONFIGURAÇÃO DE INSTALAÇÃO DO PLAYWRIGHT ---
-
-def instalar_navegadores_playwright():
-    try:
-        p = sync_playwright().start()
-        p.chromium.launch().close()
-    except:
-        subprocess.run([sys.executable, "-m", "playwright", "install"], check=True, capture_output=True)
-    finally:
-        p.stop()
-
 # --- EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
 @st.cache_data(ttl=86400)
@@ -52,6 +41,10 @@ def extrair_dados_ist_completo():
             def parse_ist_periodo(periodo_str):
                 meses_pt_br = {'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12, 'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12}
                 mes, ano_str = periodo_str.split('/')
+                
+                # CORREÇÃO: Remove qualquer caractere que não seja um dígito do ano
+                ano_str = ''.join(filter(str.isdigit, ano_str))
+                
                 ano = int('20' + ano_str) if len(ano_str) == 2 else int(ano_str)
                 mes_num = meses_pt_br[mes.lower()]
                 return pd.to_datetime(f"{ano}-{mes_num:02d}-01")
@@ -71,67 +64,53 @@ def extrair_dados_ist_completo():
 
 st.set_page_config(layout="wide", page_title="Calculadora de Reajuste IST")
 
-# Menu de navegação na barra lateral
-pagina = st.sidebar.radio("Navegação", ["Calculadora de Reajuste IST", "Como Calcular o IST"])
+st.title("Calculadora de Reajuste IST")
+st.write("Insira os dados abaixo para calcular o reajuste do valor com base no Índice de Serviços de Telecomunicações.")
 
-if pagina == "Calculadora de Reajuste IST":
-    st.title("Calculadora de Reajuste IST")
-    st.write("Insira os dados abaixo para calcular o reajuste do valor com base no Índice de Serviços de Telecomunicações.")
+df_ist = extrair_dados_ist_completo()
 
-    df_ist = extrair_dados_ist_completo()
+if not df_ist.empty:
+    with st.expander("Clique para ver todos os dados históricos"):
+        st.dataframe(df_ist, use_container_width=True)
 
-    if not df_ist.empty:
-        with st.expander("Clique para ver todos os dados históricos"):
-            st.dataframe(df_ist, use_container_width=True)
-
-        periodos_disponiveis = df_ist['PERÍODO'].tolist()
+    periodos_disponiveis = df_ist['PERÍODO'].tolist()
+    
+    with st.form(key='calculadora_form'):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00)
+        with col2:
+            data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0)
+        with col3:
+            data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1)
         
-        with st.form(key='calculadora_form'):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00)
-            with col2:
-                data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0)
-            with col3:
-                data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1)
-            
-            submit_button = st.form_submit_button("Calcular Reajuste")
+        submit_button = st.form_submit_button("Calcular Reajuste")
 
-        if submit_button:
-            try:
-                ist_inicial_row = df_ist[df_ist['PERÍODO'] == data_inicial_str]
-                ist_final_row = df_ist[df_ist['PERÍODO'] == data_final_str]
+    if submit_button:
+        try:
+            ist_inicial_row = df_ist[df_ist['PERÍODO'] == data_inicial_str]
+            ist_final_row = df_ist[df_ist['PERÍODO'] == data_final_str]
 
-                if ist_inicial_row.empty or ist_final_row.empty:
-                    st.warning(f"Uma ou ambas as datas não foram encontradas na base de dados do IST.")
-                else:
-                    ist_inicial = ist_inicial_row['ÍNDICE'].iloc[0]
-                    ist_final = ist_final_row['ÍNDICE'].iloc[0]
+            if ist_inicial_row.empty or ist_final_row.empty:
+                st.warning(f"Uma ou ambas as datas não foram encontradas na base de dados do IST.")
+            else:
+                ist_inicial = ist_inicial_row['ÍNDICE'].iloc[0]
+                ist_final = ist_final_row['ÍNDICE'].iloc[0]
 
-                    valor_reajustado = valor_original * (ist_final / ist_inicial)
-                    reajuste_percentual = ((ist_final / ist_inicial) - 1) * 100
+                valor_reajustado = valor_original * (ist_final / ist_inicial)
+                reajuste_percentual = ((ist_final / ist_inicial) - 1) * 100
 
-                    # Formatação para o padrão brasileiro
-                    valor_original_formatado = f"R$ {valor_original:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                    valor_reajustado_formatado = f"R$ {valor_reajustado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                # Formatação para o padrão brasileiro
+                valor_original_formatado = f"R$ {valor_original:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                valor_reajustado_formatado = f"R$ {valor_reajustado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-                    st.subheader("Resultado do Cálculo")
-                    st.write(f"**Valor Original:** {valor_original_formatado}")
-                    st.write(f"**Índice na data inicial ({data_inicial_str}):** {ist_inicial}")
-                    st.write(f"**Índice na data final ({data_final_str}):** {ist_final}")
-                    st.metric("Valor Reajustado", value=valor_reajustado_formatado, delta=f"{reajuste_percentual:.2f}%")
+                st.subheader("Resultado do Cálculo")
+                st.write(f"**Valor Original:** {valor_original_formatado}")
+                st.write(f"**Índice na data inicial ({data_inicial_str}):** {ist_inicial}")
+                st.write(f"**Índice na data final ({data_final_str}):** {ist_final}")
+                st.metric("Valor Reajustado", value=valor_reajustado_formatado, delta=f"{reajuste_percentual:.2f}%")
 
-            except Exception as e:
-                st.error(f"Ocorreu um erro: {e}")
-    else:
-        st.error("Não foi possível carregar os dados. Verifique a conexão com a internet.")
-
-elif pagina == "Como Calcular o IST":
-    st.title("Como o reajuste do IST é calculado?")
-    st.write("O Índice de Serviços de Telecomunicações (IST) é utilizado para reajustar valores contratuais com base na variação dos preços de serviços de telecomunicações no Brasil. O cálculo é feito de forma simples, utilizando a proporção entre os índices do período inicial e final.")
-    
-    st.markdown("---")
-    
-    st.subheader("Fórmula de Cálculo")
-    st.write("A fórmula para encontrar o novo valor reajustado é:")
-    st.code
+        except Exception as e:
+            st.error(f"Ocorreu um erro: {e}")
+else:
+    st.error("Não foi possível carregar os dados. Verifique a conexão com a internet.")
