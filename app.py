@@ -2,6 +2,8 @@ import pandas as pd
 import requests
 from playwright.sync_api import sync_playwright
 import streamlit as st
+import subprocess
+import sys
 
 # --- EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
@@ -30,7 +32,6 @@ def extrair_dados_ist_completo():
             df_ist_completo = df_ist_completo.dropna(subset=['PERÍODO']).reset_index(drop=True)
             df_ist_completo['ÍNDICE'] = df_ist_completo['ÍNDICE'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).astype(float)
             
-            # Conversão para formato de data para ordenação correta
             def parse_ist_periodo(periodo_str):
                 meses_pt_br = {'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12, 'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12}
                 mes, ano_str = periodo_str.split('/')
@@ -86,7 +87,6 @@ if pagina == "Calculadora de Reajuste IST":
     st.title("Calculadora de Reajuste IST")
     st.write("Calcula o reajuste do valor com base no Índice de Serviços de Telecomunicações.")
     
-    # O script on_startup.sh já garante a instalação do navegador
     df_ist = extrair_dados_ist_completo()
 
     if not df_ist.empty:
@@ -130,7 +130,7 @@ if pagina == "Calculadora de Reajuste IST":
             except Exception as e:
                 st.error(f"Ocorreu um erro: {e}")
     else:
-        st.error("Não foi possível carregar os dados. Verifique as configurações do Playwright e a conexão com a internet.")
+        st.error("Não foi possível carregar os dados. Verifique a conexão com a internet.")
 
 elif pagina == "Calculadora de Reajuste IPCA":
     st.title("Calculadora de Reajuste IPCA")
@@ -144,18 +144,16 @@ elif pagina == "Calculadora de Reajuste IPCA":
 
         periodos_disponiveis = df_ipca['PERÍODO'].tolist()
 
-        with st.form(key='ipca_calculadora_form'):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00, key='ipca_valor_original')
-            with col2:
-                data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0, key='ipca_data_inicial')
-            with col3:
-                data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1, key='ipca_data_final')
-
-            submit_button = st.form_submit_button("Calcular Reajuste", key='ipca_submit')
+        # O 'st.button' é usado fora de um formulário para evitar o erro de submissão
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00, key='ipca_valor_original')
+        with col2:
+            data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0, key='ipca_data_inicial')
+        with col3:
+            data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1, key='ipca_data_final')
         
-        if submit_button:
+        if st.button("Calcular Reajuste", key='ipca_submit'):
             try:
                 ipca_inicial_row = df_ipca[df_ipca['PERÍODO'] == data_inicial_str]
                 ipca_final_row = df_ipca[df_ipca['PERÍODO'] == data_final_str]
