@@ -4,6 +4,17 @@ import streamlit as st
 import subprocess
 import sys
 
+# --- CONFIGURAÇÃO DE INSTALAÇÃO DO PLAYWRIGHT ---
+
+def instalar_navegadores_playwright():
+    try:
+        p = sync_playwright().start()
+        p.chromium.launch().close()
+    except:
+        subprocess.run([sys.executable, "-m", "playwright", "install"], check=True, capture_output=True)
+    finally:
+        p.stop()
+
 # --- EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
 @st.cache_data(ttl=86400)
@@ -39,11 +50,11 @@ def extrair_dados_ist_completo():
             
             # Conversão para formato de data para ordenação correta
             def parse_ist_periodo(periodo_str):
-                meses_pt_br = {'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12}
+                meses_pt_br = {'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12, 'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12}
                 mes, ano_str = periodo_str.split('/')
                 ano = int('20' + ano_str) if len(ano_str) == 2 else int(ano_str)
                 mes_num = meses_pt_br[mes.lower()]
-                return pd.to_datetime(f"{ano}-{mes_num}-01")
+                return pd.to_datetime(f"{ano}-{mes_num:02d}-01")
             
             df_ist_completo['DATA_ORDENACAO'] = df_ist_completo['PERÍODO'].apply(parse_ist_periodo)
             df_ist_completo = df_ist_completo.sort_values(by='DATA_ORDENACAO', ascending=True).reset_index(drop=True)
@@ -80,10 +91,8 @@ if pagina == "Calculadora de Reajuste IST":
             with col1:
                 valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00)
             with col2:
-                # O index 0 é o período mais antigo
                 data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0)
             with col3:
-                # O index -1 ou o tamanho da lista - 1 é o período mais recente
                 data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1)
             
             submit_button = st.form_submit_button("Calcular Reajuste")
@@ -125,24 +134,4 @@ elif pagina == "Como Calcular o IST":
     
     st.subheader("Fórmula de Cálculo")
     st.write("A fórmula para encontrar o novo valor reajustado é:")
-    st.code("Valor Reajustado = Valor Original * (Índice do Mês Final / Índice do Mês Inicial)", language="python")
-    
-    st.write("A fórmula para encontrar o percentual de reajuste é:")
-    st.code("Reajuste Percentual = ((Índice do Mês Final / Índice do Mês Inicial) - 1) * 100", language="python")
-    
-    st.markdown("---")
-    
-    st.subheader("Exemplo Prático")
-    st.write("Imagine que um contrato com valor de R$ 1.000,00 precisa ser reajustado de **Janeiro/2023** para **Janeiro/2024**.")
-    
-    st.write("1. **Valores do IST nos períodos:**")
-    st.write("- **Janeiro/2023:** 114.77")
-    st.write("- **Janeiro/2024:** 118.52")
-
-    st.write("2. **Cálculo do Valor Reajustado:**")
-    st.code("Valor Reajustado = 1.000 * (118.52 / 114.77) ≈ R$ 1.032,68", language="python")
-    
-    st.write("3. **Cálculo do Reajuste Percentual:**")
-    st.code("Reajuste Percentual = ((118.52 / 114.77) - 1) * 100 ≈ 3,21%", language="python")
-
-    st.write("A sua calculadora já faz todo esse trabalho automaticamente para você!")
+    st.code
