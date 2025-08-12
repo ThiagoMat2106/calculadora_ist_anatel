@@ -65,7 +65,6 @@ def extrair_dados_ipca():
         df_ipca = pd.DataFrame.from_dict(data[0]['resultados'][0]['series'][0]['serie'], orient='index', columns=['ÍNDICE'])
         df_ipca = df_ipca.reset_index().rename(columns={'index': 'PERÍODO'})
         
-        # O IBGE retorna a data no formato 'YYYYMM', precisamos formatar para 'mmm/yy'
         df_ipca['PERÍODO'] = pd.to_datetime(df_ipca['PERÍODO'], format='%Y%m').dt.strftime('%b/%y').str.lower()
         df_ipca['ÍNDICE'] = df_ipca['ÍNDICE'].astype(float)
         
@@ -144,18 +143,16 @@ elif pagina == "Calculadora de Reajuste IPCA":
 
         periodos_disponiveis = df_ipca['PERÍODO'].tolist()
 
-        with st.form(key='ipca_calculadora_form'):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00, key='ipca_valor_original')
-            with col2:
-                data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0, key='ipca_data_inicial')
-            with col3:
-                data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1, key='ipca_data_final')
-
-            submit_button = st.form_submit_button("Calcular Reajuste", key='ipca_submit')
+        # O 'st.button' é usado fora de um formulário para evitar o erro de submissão
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00, key='ipca_valor_original')
+        with col2:
+            data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0, key='ipca_data_inicial')
+        with col3:
+            data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1, key='ipca_data_final')
         
-        if submit_button:
+        if st.button("Calcular Reajuste", key='ipca_submit'):
             try:
                 ipca_inicial_row = df_ipca[df_ipca['PERÍODO'] == data_inicial_str]
                 ipca_final_row = df_ipca[df_ipca['PERÍODO'] == data_final_str]
