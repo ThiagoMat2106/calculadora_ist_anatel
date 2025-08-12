@@ -1,30 +1,10 @@
 import pandas as pd
 from playwright.sync_api import sync_playwright
 import streamlit as st
-import subprocess
-import sys
 
-# --- CONFIGURAÇÃO DE INSTALAÇÃO DO PLAYWRIGHT ---
+# --- EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
-def install_playwright_browsers():
-    try:
-        # Apenas executa se não houver um navegador instalado
-        p = sync_playwright().start()
-        p.chromium.launch().close()
-    except:
-        st.info("Instalando navegadores do Playwright. Por favor, aguarde...")
-        subprocess.run([sys.executable, "-m", "playwright", "install"], check=True, capture_output=True)
-        p = sync_playwright().start()
-        p.chromium.launch().close()
-    finally:
-        p.stop()
-        st.success("Navegadores do Playwright instalados com sucesso.")
-
-install_playwright_browsers()
-
-# --- PARTE 1: EXTRAÇÃO E TRATAMENTO DOS DADOS ---
-
-@st.cache_data
+@st.cache_data(ttl=86400)
 def extrair_dados_ist_completo():
     """
     Extrai todos os dados do IST do site da Anatel usando Playwright.
@@ -35,7 +15,7 @@ def extrair_dados_ist_completo():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch()
             page = browser.new_page()
             page.goto(url)
 
