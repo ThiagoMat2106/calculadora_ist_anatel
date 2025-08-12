@@ -1,6 +1,8 @@
 import pandas as pd
 from playwright.sync_api import sync_playwright
 import streamlit as st
+import subprocess
+import sys
 
 # --- EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
@@ -35,6 +37,18 @@ def extrair_dados_ist_completo():
             df_ist_completo = df_ist_completo.dropna(subset=['PERÍODO']).reset_index(drop=True)
             df_ist_completo['ÍNDICE'] = df_ist_completo['ÍNDICE'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).astype(float)
             
+            # Conversão para formato de data para ordenação correta
+            def parse_ist_periodo(periodo_str):
+                meses_pt_br = {'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12}
+                mes, ano_str = periodo_str.split('/')
+                ano = int('20' + ano_str) if len(ano_str) == 2 else int(ano_str)
+                mes_num = meses_pt_br[mes.lower()]
+                return pd.to_datetime(f"{ano}-{mes_num}-01")
+            
+            df_ist_completo['DATA_ORDENACAO'] = df_ist_completo['PERÍODO'].apply(parse_ist_periodo)
+            df_ist_completo = df_ist_completo.sort_values(by='DATA_ORDENACAO', ascending=True).reset_index(drop=True)
+            df_ist_completo = df_ist_completo.drop('DATA_ORDENACAO', axis=1)
+
             st.success("Dados do IST extraídos e compilados com sucesso.")
             return df_ist_completo
 
@@ -61,9 +75,6 @@ if pagina == "Calculadora de Reajuste IST":
 
         periodos_disponiveis = df_ist['PERÍODO'].tolist()
         
-        # Invertendo a ordem para que o mês mais antigo apareça primeiro
-        periodos_disponiveis = periodos_disponiveis[::-1]
-
         with st.form(key='calculadora_form'):
             col1, col2, col3 = st.columns(3)
             with col1:
