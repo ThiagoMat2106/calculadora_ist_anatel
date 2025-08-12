@@ -1,9 +1,10 @@
 import pandas as pd
-import requests
 from playwright.sync_api import sync_playwright
 import streamlit as st
+import subprocess
+import sys
 
-# --- EXTRAÇÃO E TRATAMENTO DOS DADOS ---
+# --- PARTE 1: EXTRAÇÃO E TRATAMENTO DOS DADOS ---
 
 @st.cache_data(ttl=86400)
 def extrair_dados_ist_completo():
@@ -49,38 +50,12 @@ def extrair_dados_ist_completo():
         st.error(f"Ocorreu um erro ao extrair os dados: {e}")
         return pd.DataFrame()
 
-@st.cache_data(ttl=86400)
-def extrair_dados_ipca():
-    """
-    Extrai dados históricos do IPCA da API do IBGE.
-    """
-    url = "https://servicodados.ibge.gov.br/api/v3/agregados/1737/periodos/-250/variaveis/2265?localidades=N1[all]"
-    
-    st.info("Buscando dados do IPCA no IBGE...")
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        
-        df_ipca = pd.DataFrame.from_dict(data[0]['resultados'][0]['series'][0]['serie'], orient='index', columns=['ÍNDICE'])
-        df_ipca = df_ipca.reset_index().rename(columns={'index': 'PERÍODO'})
-        
-        df_ipca['PERÍODO'] = pd.to_datetime(df_ipca['PERÍODO'], format='%Y%m').dt.strftime('%b/%y').str.lower()
-        df_ipca['ÍNDICE'] = df_ipca['ÍNDICE'].astype(float)
-        
-        st.success("Dados do IPCA extraídos e compilados com sucesso.")
-        return df_ipca
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao extrair os dados do IPCA: {e}")
-        return pd.DataFrame()
-
-
 # --- INTERFACE COM STREAMLIT ---
 
-st.set_page_config(layout="wide", page_title="Calculadora de Reajuste")
+st.set_page_config(layout="wide", page_title="Calculadora de Reajuste IST")
 
 # Menu de navegação na barra lateral
-pagina = st.sidebar.radio("Selecione o Índice", ["Calculadora de Reajuste IST", "Calculadora de Reajuste IPCA", "Como Calcular o IST"])
+pagina = st.sidebar.radio("Navegação", ["Calculadora de Reajuste IST", "Como Calcular o IST"])
 
 if pagina == "Calculadora de Reajuste IST":
     st.title("Calculadora de Reajuste IST")
@@ -130,53 +105,6 @@ if pagina == "Calculadora de Reajuste IST":
                 st.error(f"Ocorreu um erro: {e}")
     else:
         st.error("Não foi possível carregar os dados. Verifique a conexão com a internet.")
-
-elif pagina == "Calculadora de Reajuste IPCA":
-    st.title("Calculadora de Reajuste IPCA")
-    st.write("Calcula o reajuste do valor com base no Índice Nacional de Preços ao Consumidor Amplo.")
-
-    df_ipca = extrair_dados_ipca()
-
-    if not df_ipca.empty:
-        with st.expander("Clique para ver todos os dados históricos"):
-            st.dataframe(df_ipca, use_container_width=True)
-
-        periodos_disponiveis = df_ipca['PERÍODO'].tolist()
-
-        # O 'st.button' é usado fora de um formulário para evitar o erro de submissão
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            valor_original = st.number_input("Valor Original do Contrato", min_value=0.01, format="%.2f", value=150.00, key='ipca_valor_original')
-        with col2:
-            data_inicial_str = st.selectbox("Mês/Ano Inicial para o Reajuste", options=periodos_disponiveis, index=0, key='ipca_data_inicial')
-        with col3:
-            data_final_str = st.selectbox("Mês/Ano Final para o Reajuste", options=periodos_disponiveis, index=len(periodos_disponiveis) - 1, key='ipca_data_final')
-        
-        if st.button("Calcular Reajuste", key='ipca_submit'):
-            try:
-                ipca_inicial_row = df_ipca[df_ipca['PERÍODO'] == data_inicial_str]
-                ipca_final_row = df_ipca[df_ipca['PERÍODO'] == data_final_str]
-
-                if ipca_inicial_row.empty or ipca_final_row.empty:
-                    st.warning(f"Uma ou ambas as datas não foram encontradas na base de dados do IPCA.")
-                else:
-                    ipca_inicial = ipca_inicial_row['ÍNDICE'].iloc[0]
-                    ipca_final = ipca_final_row['ÍNDICE'].iloc[0]
-                    valor_reajustado = valor_original * (ipca_final / ipca_inicial)
-                    reajuste_percentual = ((ipca_final / ipca_inicial) - 1) * 100
-                    valor_original_formatado = f"R$ {valor_original:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                    valor_reajustado_formatado = f"R$ {valor_reajustado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-                    st.subheader("Resultado do Cálculo")
-                    st.write(f"**Valor Original:** {valor_original_formatado}")
-                    st.write(f"**Índice na data inicial ({data_inicial_str}):** {ipca_inicial}")
-                    st.write(f"**Índice na data final ({data_final_str}):** {ipca_final}")
-                    st.metric("Valor Reajustado", value=valor_reajustado_formatado, delta=f"{reajuste_percentual:.2f}%")
-
-            except Exception as e:
-                st.error(f"Ocorreu um erro: {e}")
-    else:
-        st.error("Não foi possível carregar os dados do IBGE. Verifique a conexão com a internet ou se a API está disponível.")
 
 elif pagina == "Como Calcular o IST":
     st.title("Como o reajuste do IST é calculado?")
